@@ -1,25 +1,26 @@
 language: python
 
-# env:
-#   - PYVER="2.7"
-#   - PYVER="3.4"
-#   - PYVER="3.5"
-#   - PYVER="3.6"
-# os:
-#   - linux
-#   - osx
-# before_install:
-#   - |
-#     if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
-#       wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
-#       mkdir .matplotlib;
-#       echo "backend : TkAgg" >> .matplotlib/matplotlibrc
-#     fi
-#   - |
-#     if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then 
-#       sudo apt-get update;
-#       wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-#     fi
+env:
+  - PYVER="2.7"
+  - PYVER="3.5"
+  - PYVER="3.6"
+global:
+  - secure:     
+os:
+  - linux
+  - osx
+before_install:
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then 
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-MacOSX-x86_64.sh -O miniconda.sh;
+      mkdir .matplotlib;
+      echo "backend : TkAgg" >> .matplotlib/matplotlibrc
+    fi
+  - |
+    if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then 
+      sudo apt-get update;
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+    fi
 install:
   - sudo apt-get update
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
@@ -37,7 +38,32 @@ install:
 
 script:
   - pytest --pylint --pylint-rcfile=.pyrcfile --pylint-error-types=EF splinart
+  - cd tests
   - pytest --cov=splinart tests
+  - |
+    if [[ $TRAVIS_TAG ]]; then
+      python setup.py sdist;
+      conda build -q --python ${PYVER} recipes &&
+      conda install --use-local ${PROJECT_NAME} &&
+      conda uninstall ${PROJECT_NAME};
+    fi
 
 after_success:
   - codecov  -e $TRAVIS_PYTHON_VERSION
+
+# deploy:
+#   - provider: pypi
+#     skip_cleanup: true
+#     user: gouarin
+#     password: "${PYPI_PASSWD}"
+#     server: https://test.pypi.org/legacy/
+#     on:
+#       repo: "${GITHUB_REPO_NAME}"
+#       tags: true
+#       condition: "$PYVER == 2.7 && $TRAVIS_OS_NAME == linux"
+#   - provider: script
+#     skip_cleanup: true
+#     script: anaconda -t $ANACONDA_TOKEN upload --force ${HOME}/miniconda/conda-bld/*/${PROJECT_NAME}-*.tar.bz2
+#     on:
+#       repo: "${GITHUB_REPO_NAME}"
+#       tags: true
